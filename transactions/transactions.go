@@ -144,18 +144,18 @@ func getNonce(client api.Client, address string, nonce int64) (currentNonce uint
 }
 
 func calculateAmount(client api.Client, address string, amount float64, sendMaximumAmount bool, gasParams GasParams) (correctAmount *big.Int, err error) {
-	if sendMaximumAmount {
-		account, err := client.GetAccount(address)
-		if err != nil {
-			return nil, err
-		}
-
-		gasCost := gasParams.CalculateTotalGasCost()
-		apiAmount, _ := new(big.Int).SetString(account.Balance, 10)
-		correctAmount = gasParams.CalculateAmountWithoutGasCost(apiAmount, gasCost)
-	} else {
-		correctAmount = utils.ConvertFloatAmountToBigInt(amount)
+	if !sendMaximumAmount {
+		return utils.ConvertFloatAmountToBigInt(amount), nil
 	}
+
+	account, err := client.GetAccount(address)
+	if err != nil {
+		return nil, err
+	}
+
+	gasCost := gasParams.CalculateTotalGasCost()
+	apiAmount, _ := new(big.Int).SetString(account.Balance, 10)
+	correctAmount = gasParams.CalculateAmountWithoutGasCost(apiAmount, gasCost)
 
 	return correctAmount, nil
 }
