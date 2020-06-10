@@ -1,6 +1,7 @@
 package transactions
 
 import (
+	"math/big"
 	"strconv"
 
 	"github.com/SebastianJ/elrond-sdk/config"
@@ -51,4 +52,27 @@ func ParseGasSettings(configPath string) (GasParams, error) {
 	}
 
 	return gasParams, nil
+}
+
+// UpdateGasLimit - update gas limit based on tx data
+func (gasParams *GasParams) UpdateGasLimit(data string) {
+	if len(data) > 0 {
+		gasParams.GasLimit = gasParams.GasLimit + (uint64(len(data)) * gasParams.GasPerDataByte)
+	}
+}
+
+// CalculateTotalGasCost - calculates the total gas cost for a given transaction
+func (gasParams *GasParams) CalculateTotalGasCost() *big.Int {
+	bigGasPrice := new(big.Int).SetUint64(gasParams.GasPrice)
+	bigGasLimit := new(big.Int).SetUint64(gasParams.GasLimit)
+	bigGasCost := bigGasPrice.Mul(bigGasPrice, bigGasLimit)
+
+	return bigGasCost
+}
+
+// CalculateAmountWithoutGasCost - calculates the amount to send for a tx excluding its gas cost
+func (gasParams *GasParams) CalculateAmountWithoutGasCost(amount *big.Int, gasCost *big.Int) *big.Int {
+	amountAfterGas := new(big.Int).Sub(amount, gasCost)
+
+	return amountAfterGas
 }

@@ -18,13 +18,13 @@ func SendTransaction(
 	wallet sdkWallet.Wallet,
 	receiver string,
 	amount float64,
-	maximum bool,
+	sendMaximumAmount bool,
 	nonce int64,
 	txData string,
 	gasParams GasParams,
 	client api.Client,
 ) (string, error) {
-	_, apiData, err := GenerateAndSignTransaction(wallet, receiver, amount, maximum, nonce, txData, gasParams, client)
+	_, apiData, err := GenerateAndSignTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +35,7 @@ func SendTransaction(
 		// If we've sent an invalid nonce - sleep 3 seconds and then retry again using a fresh nonce
 		if strings.Contains(txError.Error(), "transaction generation failed: invalid nonce") {
 			time.Sleep(3 * time.Second)
-			return SendTransaction(wallet, receiver, amount, maximum, nonce, txData, gasParams, client)
+			return SendTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 		}
 
 		return "", txError
@@ -49,13 +49,13 @@ func GenerateAndSignTransaction(
 	wallet sdkWallet.Wallet,
 	receiver string,
 	amount float64,
-	maximum bool,
+	sendMaximumAmount bool,
 	nonce int64,
 	txData string,
 	gasParams GasParams,
 	client api.Client,
 ) (transaction.Transaction, api.TransactionData, error) {
-	tx, apiData, err := GenerateTransaction(wallet, receiver, amount, maximum, nonce, txData, gasParams, client)
+	tx, apiData, err := GenerateTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 
 	signature, err := signTransaction(wallet, tx)
 	if err != nil {
@@ -73,61 +73,45 @@ func GenerateTransaction(
 	wallet sdkWallet.Wallet,
 	receiver string,
 	amount float64,
-	maximum bool,
+	sendMaximumAmount bool,
 	nonce int64,
 	txData string,
 	gasParams GasParams,
 	client api.Client,
 ) (transaction.Transaction, api.TransactionData, error) {
-	senderBytes, err := wallet.PrivateKey.GeneratePublic().ToByteArray()
-	if err != nil {
-		return transaction.Transaction{}, api.TransactionData{}, err
-	}
-
-	sender := wallet.Converter.Encode(senderBytes)
-	if err != nil {
-		return transaction.Transaction{}, api.TransactionData{}, err
-	}
-
 	receiverBytes, err := wallet.Converter.Decode(receiver)
 
-	account, err := client.GetAccount(sender)
+	currentNonce, err := getNonce(client, wallet.Address, nonce)
 	if err != nil {
 		return transaction.Transaction{}, api.TransactionData{}, err
 	}
 
-	realNonce := getNonce(&account, nonce)
+	gasParams.UpdateGasLimit(txData)
 
-	if len(txData) > 0 {
-		gasParams.GasLimit = gasParams.GasLimit + (uint64(len(txData)) * gasParams.GasPerDataByte)
-	}
-
-	var realAmount *big.Int
-	if maximum {
-		realAmount = calculateMaximumAmount(&account, gasParams.GasPrice, gasParams.GasLimit)
-	} else {
-		realAmount = utils.ConvertFloatAmountToBigInt(amount)
+	correctAmount, err := calculateAmount(client, wallet.Address, amount, sendMaximumAmount, gasParams)
+	if err != nil {
+		return transaction.Transaction{}, api.TransactionData{}, err
 	}
 
 	//converted, _ := utils.ConvertNumeralStringToBigFloat(realAmount.String())
 	//fmt.Println(fmt.Sprintf("Sending amount: %f (%s)", converted, realAmount))
 
 	tx := transaction.Transaction{
-		SndAddr:  senderBytes,
+		SndAddr:  wallet.AddressBytes,
 		RcvAddr:  receiverBytes,
-		Value:    realAmount,
+		Value:    correctAmount,
 		Data:     []byte(txData),
-		Nonce:    realNonce,
+		Nonce:    currentNonce,
 		GasPrice: gasParams.GasPrice,
 		GasLimit: gasParams.GasLimit,
 	}
 
 	apiData := api.TransactionData{
-		Sender:   sender,
+		Sender:   wallet.Address,
 		Receiver: receiver,
-		Value:    realAmount.String(),
+		Value:    correctAmount.String(),
 		Data:     txData,
-		Nonce:    realNonce,
+		Nonce:    currentNonce,
 		GasPrice: gasParams.GasPrice,
 		GasLimit: gasParams.GasLimit,
 	}
@@ -145,22 +129,35 @@ func signTransaction(wallet sdkWallet.Wallet, tx transaction.Transaction) ([]byt
 	return wallet.Sign(txBuff)
 }
 
-func getNonce(accountData *api.Account, nonce int64) uint64 {
-	var realNonce uint64
+func getNonce(client api.Client, address string, nonce int64) (currentNonce uint64, err error) {
+	var account api.Account
 
 	if nonce > 0 {
-		realNonce = uint64(nonce)
-	} else if accountData != nil {
-		realNonce = accountData.Nonce
+		currentNonce = uint64(nonce)
+	} else {
+		account, err = client.GetAccount(address)
+		if err != nil {
+			return 0, err
+		}
+		currentNonce = uint64(account.Nonce)
 	}
 
-	return realNonce
+	return currentNonce, err
 }
 
-func calculateMaximumAmount(accountData *api.Account, gasPrice uint64, gasLimit uint64) *big.Int {
-	gasCost := utils.CalculateTotalGasCost(gasPrice, gasLimit)
-	apiAmount, _ := new(big.Int).SetString(accountData.Balance, 10)
-	realAmount := utils.CalculateAmountWithoutGasCost(apiAmount, gasCost)
+func calculateAmount(client api.Client, address string, amount float64, sendMaximumAmount bool, gasParams GasParams) (correctAmount *big.Int, err error) {
+	if sendMaximumAmount {
+		account, err := client.GetAccount(address)
+		if err != nil {
+			return nil, err
+		}
 
-	return realAmount
+		gasCost := gasParams.CalculateTotalGasCost()
+		apiAmount, _ := new(big.Int).SetString(account.Balance, 10)
+		correctAmount = gasParams.CalculateAmountWithoutGasCost(apiAmount, gasCost)
+	} else {
+		correctAmount = utils.ConvertFloatAmountToBigInt(amount)
+	}
+
+	return correctAmount, nil
 }

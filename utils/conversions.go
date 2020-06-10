@@ -29,19 +29,3 @@ func ConvertNumeralStringToBigFloat(balance string) (*big.Float, error) {
 	value := new(big.Float).Quo(floatBalance, base)
 	return value, nil
 }
-
-// CalculateTotalGasCost - calculates the total gas cost for a given transaction
-func CalculateTotalGasCost(gasPrice uint64, gasLimit uint64) *big.Int {
-	bigGasPrice := new(big.Int).SetUint64(gasPrice)
-	bigGasLimit := new(big.Int).SetUint64(gasLimit)
-	bigGasCost := bigGasPrice.Mul(bigGasPrice, bigGasLimit)
-
-	return bigGasCost
-}
-
-// CalculateAmountWithoutGasCost - calculates the amount to send for a tx excluding its gas cost
-func CalculateAmountWithoutGasCost(amount *big.Int, gasCost *big.Int) *big.Int {
-	amountAfterGas := new(big.Int).Sub(amount, gasCost)
-
-	return amountAfterGas
-}
