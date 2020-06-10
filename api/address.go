@@ -23,6 +23,8 @@ type AccountWrapper struct {
 
 // GetAccount fetches the desired account's balance as well as nonce
 func (client *Client) GetAccount(address string) (Account, error) {
+	client.Initialize()
+
 	host := client.Host
 
 	if client.ForceAPINonceLookups {
@@ -49,6 +51,8 @@ func (client *Client) GetAccount(address string) (Account, error) {
 
 // GetBalance fetches the balance of a specific account
 func (client *Client) GetBalance(address string) (Account, error) {
+	client.Initialize()
+
 	host := client.Host
 
 	if client.ForceAPINonceLookups {

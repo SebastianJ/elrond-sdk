@@ -1,4 +1,4 @@
-package keystore
+package wallet
 
 import (
 	"io/ioutil"

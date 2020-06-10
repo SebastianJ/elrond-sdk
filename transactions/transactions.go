@@ -6,28 +6,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ElrondNetwork/elrond-go/core"
-	"github.com/ElrondNetwork/elrond-go/core/pubkeyConverter"
-	"github.com/ElrondNetwork/elrond-go/crypto"
-	"github.com/ElrondNetwork/elrond-go/crypto/signing/ed25519/singlesig"
 	"github.com/ElrondNetwork/elrond-go/data/transaction"
 	"github.com/ElrondNetwork/elrond-go/marshal"
 	"github.com/SebastianJ/elrond-sdk/api"
-	cliCrypto "github.com/SebastianJ/elrond-sdk/crypto"
 	"github.com/SebastianJ/elrond-sdk/utils"
+	sdkWallet "github.com/SebastianJ/elrond-sdk/wallet"
 )
-
-var (
-	converter core.PubkeyConverter
-)
-
-func init() {
-	converter, _ = pubkeyConverter.NewBech32PubkeyConverter(32)
-}
 
 // SendTransaction - generates and broadcasts a transaction to the blockchain
 func SendTransaction(
-	walletPath string,
+	wallet sdkWallet.Wallet,
 	receiver string,
 	amount float64,
 	maximum bool,
@@ -36,20 +24,18 @@ func SendTransaction(
 	gasParams GasParams,
 	client api.Client,
 ) (string, error) {
-	signer, privateKey, _, err := cliCrypto.DecryptWallet(walletPath)
+	_, apiData, err := GenerateAndSignTransaction(wallet, receiver, amount, maximum, nonce, txData, gasParams, client)
 	if err != nil {
 		return "", err
 	}
 
-	_, apiData, err := GenerateAndSignTransaction(privateKey, signer, receiver, amount, maximum, nonce, txData, gasParams, client)
-	client.Initialize()
 	txHexHash, txError := client.SendTransaction(apiData)
 
 	if txError != nil {
 		// If we've sent an invalid nonce - sleep 3 seconds and then retry again using a fresh nonce
 		if strings.Contains(txError.Error(), "transaction generation failed: invalid nonce") {
 			time.Sleep(3 * time.Second)
-			return SendTransaction(walletPath, receiver, amount, maximum, nonce, txData, gasParams, client)
+			return SendTransaction(wallet, receiver, amount, maximum, nonce, txData, gasParams, client)
 		}
 
 		return "", txError
@@ -60,8 +46,7 @@ func SendTransaction(
 
 // GenerateAndSignTransaction - generates and signs a transaction
 func GenerateAndSignTransaction(
-	privateKey crypto.PrivateKey,
-	signer *singlesig.Ed25519Signer,
+	wallet sdkWallet.Wallet,
 	receiver string,
 	amount float64,
 	maximum bool,
@@ -70,9 +55,9 @@ func GenerateAndSignTransaction(
 	gasParams GasParams,
 	client api.Client,
 ) (transaction.Transaction, api.TransactionData, error) {
-	tx, apiData, err := GenerateTransaction(privateKey, receiver, amount, maximum, nonce, txData, gasParams, client)
+	tx, apiData, err := GenerateTransaction(wallet, receiver, amount, maximum, nonce, txData, gasParams, client)
 
-	signature, err := signTransaction(privateKey, signer, tx)
+	signature, err := signTransaction(wallet, tx)
 	if err != nil {
 		return transaction.Transaction{}, api.TransactionData{}, err
 	}
@@ -85,7 +70,7 @@ func GenerateAndSignTransaction(
 
 // GenerateTransaction - generates a new transaction using the supplied parameters
 func GenerateTransaction(
-	privateKey crypto.PrivateKey,
+	wallet sdkWallet.Wallet,
 	receiver string,
 	amount float64,
 	maximum bool,
@@ -94,17 +79,17 @@ func GenerateTransaction(
 	gasParams GasParams,
 	client api.Client,
 ) (transaction.Transaction, api.TransactionData, error) {
-	senderBytes, err := privateKey.GeneratePublic().ToByteArray()
+	senderBytes, err := wallet.PrivateKey.GeneratePublic().ToByteArray()
 	if err != nil {
 		return transaction.Transaction{}, api.TransactionData{}, err
 	}
 
-	sender := converter.Encode(senderBytes)
+	sender := wallet.Converter.Encode(senderBytes)
 	if err != nil {
 		return transaction.Transaction{}, api.TransactionData{}, err
 	}
 
-	receiverBytes, err := converter.Decode(receiver)
+	receiverBytes, err := wallet.Converter.Decode(receiver)
 
 	account, err := client.GetAccount(sender)
 	if err != nil {
@@ -150,19 +135,14 @@ func GenerateTransaction(
 	return tx, apiData, nil
 }
 
-func signTransaction(privateKey crypto.PrivateKey, signer *singlesig.Ed25519Signer, tx transaction.Transaction) ([]byte, error) {
+func signTransaction(wallet sdkWallet.Wallet, tx transaction.Transaction) ([]byte, error) {
 	marshaler := &marshal.TxJsonMarshalizer{}
-	txBuff, err := tx.GetDataForSigning(converter, marshaler)
+	txBuff, err := tx.GetDataForSigning(wallet.Converter, marshaler)
 	if err != nil {
 		return nil, err
 	}
 
-	signature, err := signer.Sign(privateKey, txBuff)
-	if err != nil {
-		return nil, err
-	}
-
-	return signature, nil
+	return wallet.Sign(txBuff)
 }
 
 func getNonce(accountData *api.Account, nonce int64) uint64 {
