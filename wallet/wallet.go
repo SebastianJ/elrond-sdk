@@ -12,7 +12,7 @@ import (
 	"github.com/ElrondNetwork/elrond-go/crypto/signing/ed25519/singlesig"
 )
 
-// GasParams - represents gas parameters for a transaction
+// Wallet - represents a wallet
 type Wallet struct {
 	PrivateKey   crypto.PrivateKey
 	PublicKey    crypto.PublicKey
@@ -34,6 +34,23 @@ func Decrypt(walletPath string) (Wallet, error) {
 		return Wallet{}, fmt.Errorf("%w for encoded secret key", err)
 	}
 
+	return toWallet(skBytes)
+}
+
+// Generate - generate a new wallet
+func Generate() (Wallet, error) {
+	keyGen := newKeyGenerator()
+
+	sk, _ := keyGen.GeneratePair()
+	skBytes, err := sk.ToByteArray()
+	if err != nil {
+		return Wallet{}, fmt.Errorf("%w for encoded secret key", err)
+	}
+
+	return toWallet(skBytes)
+}
+
+func toWallet(skBytes []byte) (Wallet, error) {
 	signer, privateKey, publicKey, err := generateCryptoSuite(skBytes)
 	if err != nil {
 		return Wallet{}, err
@@ -66,9 +83,17 @@ func Decrypt(walletPath string) (Wallet, error) {
 	return wallet, nil
 }
 
+func newSigner() *singlesig.Ed25519Signer {
+	return &singlesig.Ed25519Signer{}
+}
+
+func newKeyGenerator() crypto.KeyGenerator {
+	return signing.NewKeyGenerator(ed25519.NewEd25519())
+}
+
 func generateCryptoSuite(skBytes []byte) (signer *singlesig.Ed25519Signer, privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
-	signer = &singlesig.Ed25519Signer{}
-	keyGen := signing.NewKeyGenerator(ed25519.NewEd25519())
+	signer = newSigner()
+	keyGen := newKeyGenerator()
 
 	privKey, err = keyGen.PrivateKeyFromByteArray(skBytes)
 	if err != nil {
