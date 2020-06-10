@@ -8,6 +8,7 @@ import (
 )
 
 // IdentifyAddressShard - identifies what shard an address belongs to
+// This isn't working right now - based on old previous shard detection
 func IdentifyAddressShard(address string) (int, error) {
 	if strings.HasPrefix(address, "erd") {
 		pubAddress, err := Bech32ToPublicKey(address)
