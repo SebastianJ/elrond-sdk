@@ -130,19 +130,17 @@ func signTransaction(wallet sdkWallet.Wallet, tx transaction.Transaction) ([]byt
 }
 
 func getNonce(client api.Client, address string, nonce int64) (currentNonce uint64, err error) {
-	var account api.Account
-
-	if nonce > 0 {
-		currentNonce = uint64(nonce)
-	} else {
-		account, err = client.GetAccount(address)
-		if err != nil {
-			return 0, err
-		}
-		currentNonce = uint64(account.Nonce)
+	if nonce >= 0 {
+		return uint64(nonce), nil
 	}
 
-	return currentNonce, err
+	var account api.Account
+	account, err = client.GetAccount(address)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(account.Nonce), nil
 }
 
 func calculateAmount(client api.Client, address string, amount float64, sendMaximumAmount bool, gasParams GasParams) (correctAmount *big.Int, err error) {
