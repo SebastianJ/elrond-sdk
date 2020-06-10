@@ -57,7 +57,7 @@ func GenerateAndSignTransaction(
 ) (transaction.Transaction, api.TransactionData, error) {
 	tx, apiData, err := GenerateTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 
-	signature, err := signTransaction(wallet, tx)
+	signature, err := SignTransaction(wallet, tx)
 	if err != nil {
 		return transaction.Transaction{}, api.TransactionData{}, err
 	}
@@ -119,7 +119,8 @@ func GenerateTransaction(
 	return tx, apiData, nil
 }
 
-func signTransaction(wallet sdkWallet.Wallet, tx transaction.Transaction) ([]byte, error) {
+// SignTransaction - signs a given transaction and returns the signature
+func SignTransaction(wallet sdkWallet.Wallet, tx transaction.Transaction) ([]byte, error) {
 	marshaler := &marshal.TxJsonMarshalizer{}
 	txBuff, err := tx.GetDataForSigning(wallet.Converter, marshaler)
 	if err != nil {
