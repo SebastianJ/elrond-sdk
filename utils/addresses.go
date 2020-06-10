@@ -2,9 +2,40 @@ package utils
 
 import (
 	"encoding/hex"
+	"strings"
 
 	"github.com/ElrondNetwork/elrond-go/core/pubkeyConverter"
 )
+
+// IdentifyAddressShard - identifies what shard an address belongs to
+func IdentifyAddressShard(address string) (int, error) {
+	if strings.HasPrefix(address, "erd") {
+		pubAddress, err := Bech32ToPublicKey(address)
+		if err != nil {
+			return -1, err
+		}
+		address = pubAddress
+	}
+
+	lastAddressCharacter := strings.ToLower(string(address[len(address)-1]))
+
+	var shard int
+
+	switch lastAddressCharacter {
+	case "0", "8":
+		shard = 0
+	case "1", "5", "9", "d":
+		shard = 1
+	case "2", "6", "a", "e":
+		shard = 2
+	case "3", "7", "b", "f":
+		shard = 3
+	case "4", "c":
+		shard = 4
+	}
+
+	return shard, nil
+}
 
 // PublicKeyToBech32 - converts a public key to bech32 format
 func PublicKeyToBech32(key string) (string, error) {
