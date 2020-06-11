@@ -6,17 +6,16 @@ import (
 
 	"github.com/ElrondNetwork/elrond-go/core"
 	"github.com/ElrondNetwork/elrond-go/core/pubkeyConverter"
-	"github.com/ElrondNetwork/elrond-go/crypto"
-	"github.com/ElrondNetwork/elrond-go/crypto/signing"
-	"github.com/ElrondNetwork/elrond-go/crypto/signing/ed25519"
-	"github.com/ElrondNetwork/elrond-go/crypto/signing/ed25519/singlesig"
+	"github.com/SebastianJ/elrond-sdk/crypto"
+)
+
+var (
+	bech32KeyLength = 32
 )
 
 // Wallet - represents a wallet
 type Wallet struct {
-	PrivateKey   crypto.PrivateKey
-	PublicKey    crypto.PublicKey
-	Signer       *singlesig.Ed25519Signer
+	Key          crypto.Key
 	Converter    core.PubkeyConverter
 	Address      string
 	AddressBytes []byte
@@ -34,34 +33,31 @@ func Decrypt(walletPath string) (Wallet, error) {
 		return Wallet{}, fmt.Errorf("%w for encoded secret key", err)
 	}
 
-	return toWallet(skBytes)
+	key, err := crypto.LoadKeyFromPrivateKey(crypto.ED25519, skBytes)
+	if err != nil {
+		return Wallet{}, err
+	}
+
+	return toWallet(key)
 }
 
 // Generate - generate a new wallet
 func Generate() (Wallet, error) {
-	keyGen := newKeyGenerator()
-
-	sk, _ := keyGen.GeneratePair()
-	skBytes, err := sk.ToByteArray()
+	key, err := crypto.GenerateKey(crypto.ED25519)
 	if err != nil {
-		return Wallet{}, fmt.Errorf("%w for encoded secret key", err)
+		return Wallet{}, err
 	}
 
-	return toWallet(skBytes)
+	return toWallet(key)
 }
 
-func toWallet(skBytes []byte) (Wallet, error) {
-	signer, privateKey, publicKey, err := generateCryptoSuite(skBytes)
+func toWallet(key crypto.Key) (Wallet, error) {
+	converter, err := pubkeyConverter.NewBech32PubkeyConverter(bech32KeyLength)
 	if err != nil {
 		return Wallet{}, err
 	}
 
-	converter, err := pubkeyConverter.NewBech32PubkeyConverter(32)
-	if err != nil {
-		return Wallet{}, err
-	}
-
-	addressBytes, err := privateKey.GeneratePublic().ToByteArray()
+	addressBytes, err := key.PrivateKey.GeneratePublic().ToByteArray()
 	if err != nil {
 		return Wallet{}, err
 	}
@@ -72,9 +68,7 @@ func toWallet(skBytes []byte) (Wallet, error) {
 	}
 
 	wallet := Wallet{
-		PrivateKey:   privateKey,
-		PublicKey:    publicKey,
-		Signer:       signer,
+		Key:          key,
 		Converter:    converter,
 		Address:      address,
 		AddressBytes: addressBytes,
@@ -83,31 +77,9 @@ func toWallet(skBytes []byte) (Wallet, error) {
 	return wallet, nil
 }
 
-func newSigner() *singlesig.Ed25519Signer {
-	return &singlesig.Ed25519Signer{}
-}
-
-func newKeyGenerator() crypto.KeyGenerator {
-	return signing.NewKeyGenerator(ed25519.NewEd25519())
-}
-
-func generateCryptoSuite(skBytes []byte) (signer *singlesig.Ed25519Signer, privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
-	signer = newSigner()
-	keyGen := newKeyGenerator()
-
-	privKey, err = keyGen.PrivateKeyFromByteArray(skBytes)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	pubKey = privKey.GeneratePublic()
-
-	return signer, privKey, pubKey, err
-}
-
 // Sign - sign provided []byte data using the wallet
 func (wallet *Wallet) Sign(data []byte) ([]byte, error) {
-	signature, err := wallet.Signer.Sign(wallet.PrivateKey, data)
+	signature, err := wallet.Key.Signer.Sign(wallet.Key.PrivateKey, data)
 	if err != nil {
 		return nil, err
 	}
