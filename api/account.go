@@ -50,7 +50,7 @@ func (client *Client) GetAccount(address string) (Account, error) {
 	json.Unmarshal([]byte(body), &response)
 	account = response.Account
 
-	if err := account.Initialize(); err != nil {
+	if err := account.Initialize(address); err != nil {
 		return account, err
 	}
 
@@ -83,7 +83,7 @@ func (client *Client) GetBalance(address string) (Account, error) {
 
 	json.Unmarshal([]byte(body), &account)
 
-	if err := account.Initialize(); err != nil {
+	if err := account.Initialize(address); err != nil {
 		return account, err
 	}
 
@@ -91,7 +91,11 @@ func (client *Client) GetBalance(address string) (Account, error) {
 }
 
 // Initialize - convert balances etc
-func (account *Account) Initialize() error {
+func (account *Account) Initialize(address string) error {
+	if account.Address == "" {
+		account.Address = address
+	}
+
 	if account.BalanceString != "" {
 		converted, err := utils.ConvertNumeralStringToBigFloat(account.BalanceString)
 		if err != nil {
