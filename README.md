@@ -23,7 +23,7 @@ source scripts/bls_build_flags.sh
 go build ./...
 ```
 
-Without the installalation / compilation steps above you probably get these errors:
+Without the installation / compilation steps above you probably get these errors:
 ```
 ../../../../pkg/mod/github.com/herumi/bls-go-binary@v0.0.0-20200324054641-17de9ae04665/bls/bls.go:697:2: could not determine kind of name for C.blsAggregateSignature
 ../../../../pkg/mod/github.com/herumi/bls-go-binary@v0.0.0-20200324054641-17de9ae04665/bls/bls.go:706:9: could not determine kind of name for C.blsFastAggregateVerify
