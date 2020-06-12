@@ -10,12 +10,15 @@ mkdir -p $GOPATH/src/github.com/herumi
 cd $GOPATH/src/github.com/herumi
 git clone https://github.com/herumi/mcl
 git clone https://github.com/herumi/bls
+
+mkdir -p $GOPATH/src/github.com/SebastianJ
+git clone https://github.com/SebastianJ/elrond-sdk
 ```
 
 ## Compilation
 
 ```
-cd PATH_TO_THIS_REPO
+cd $GOPATH/src/github.com/SebastianJ/elrond-sdk
 source scripts/bls_build_flags.sh
 go build ./...
 ```
