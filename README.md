@@ -8,7 +8,7 @@ Because of the BLS dependency in ElrondNetwork/elrond-go you have to also instal
 ```
 mkdir -p $GOPATH/src/github.com/herumi
 cd $GOPATH/src/github.com/herumi
-git clone git://github.com/herumi/mcl
+git clone https://github.com/herumi/mcl
 git clone https://github.com/herumi/bls
 ```
 
