@@ -155,7 +155,7 @@ func calculateAmount(client api.Client, address string, amount float64, sendMaxi
 	}
 
 	gasCost := gasParams.CalculateTotalGasCost()
-	apiAmount, _ := new(big.Int).SetString(account.Balance, 10)
+	apiAmount, _ := new(big.Int).SetString(account.BalanceString, 10)
 	correctAmount = gasParams.CalculateAmountWithoutGasCost(apiAmount, gasCost)
 
 	return correctAmount, nil

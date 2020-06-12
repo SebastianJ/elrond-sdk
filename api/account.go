@@ -3,14 +3,18 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
+
+	"github.com/SebastianJ/elrond-sdk/utils"
 )
 
 // Account contains the current data for a specific wallet or account
 type Account struct {
-	Address string `json:"address,omitempty"`
-	Nonce   uint64 `json:"nonce,omitempty"`
-	Balance string `json:"balance"`
+	Address       string     `json:"address,omitempty"`
+	Nonce         uint64     `json:"nonce,omitempty"`
+	BalanceString string     `json:"balance"`
+	Balance       *big.Float `json:"-"`
 	//Code     string
 	//CodeHash []byte
 	//RootHash []byte
@@ -35,18 +39,22 @@ func (client *Client) GetAccount(address string) (Account, error) {
 	req, err := http.NewRequest("GET", url, nil)
 
 	var response AccountWrapper
-	var accountResponse Account
+	var account Account
 
 	body, err := client.PerformRequest(url, req)
 
 	if err != nil {
-		return accountResponse, err
+		return account, err
 	}
 
 	json.Unmarshal([]byte(body), &response)
-	accountResponse = response.Account
+	account = response.Account
 
-	return accountResponse, nil
+	if err := account.Initialize(); err != nil {
+		return account, err
+	}
+
+	return account, nil
 }
 
 // GetBalance fetches the balance of a specific account
@@ -59,22 +67,39 @@ func (client *Client) GetBalance(address string) (Account, error) {
 		host = defaultEndpoint
 	}
 
+	var account Account
 	url := fmt.Sprintf("%s/address/%s/balance", host, address)
+
 	req, err := http.NewRequest("GET", url, nil)
-
-	var accountResponse Account
-
 	if err != nil {
-		return accountResponse, err
+		return account, err
 	}
 
 	body, err := client.PerformRequest(url, req)
 
 	if err != nil {
-		return accountResponse, err
+		return account, err
 	}
 
-	json.Unmarshal([]byte(body), &accountResponse)
+	json.Unmarshal([]byte(body), &account)
 
-	return accountResponse, nil
+	if err := account.Initialize(); err != nil {
+		return account, err
+	}
+
+	return account, nil
+}
+
+// Initialize - convert balances etc
+func (account *Account) Initialize() error {
+	if account.BalanceString != "" {
+		converted, err := utils.ConvertNumeralStringToBigFloat(account.BalanceString)
+		if err != nil {
+			return err
+		}
+
+		account.Balance = converted
+	}
+
+	return nil
 }
