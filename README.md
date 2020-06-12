@@ -12,6 +12,7 @@ git clone https://github.com/herumi/mcl
 git clone https://github.com/herumi/bls
 
 mkdir -p $GOPATH/src/github.com/SebastianJ
+cd $GOPATH/src/github.com/SebastianJ
 git clone https://github.com/SebastianJ/elrond-sdk
 ```
 
