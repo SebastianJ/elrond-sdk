@@ -33,3 +33,32 @@ func GenerateCreateValidatorPayload(blsKeys []crypto.Key, privateKeyPlaceholder 
 
 	return payload.String()
 }
+
+// GenerateUnstakingPayload - Amount: 0 - Gas limit: 6000000
+func GenerateUnstakingPayload(blsKey crypto.Key) string {
+	return generateStakingPayload("unStake", blsKey)
+}
+
+// GenerateUnbondingPayload - Amount: 0 - Gas limit: 6000000
+func GenerateUnbondingPayload(blsKey crypto.Key) string {
+	return generateStakingPayload("unBond", blsKey)
+}
+
+// GenerateUnjailPayload - Amount: 2500 - Gas limit: 6000000
+func GenerateUnjailPayload(blsKey crypto.Key) string {
+	return generateStakingPayload("unJail", blsKey)
+}
+
+// GenerateChangeRewardAddressPayload - Amount: 0 - Gas limit: 6000000
+func GenerateChangeRewardAddressPayload(hexPublicKey string) string {
+	return fmt.Sprintf("changeRewardAddress@%s", hexPublicKey)
+}
+
+// GenerateClaimPayload - Amount: 0 - Gas limit: 6000000
+func GenerateClaimPayload() string {
+	return "claim"
+}
+
+func generateStakingPayload(command string, blsKey crypto.Key) string {
+	return fmt.Sprintf("%s@%s", command, blsKey.PublicKeyString)
+}
