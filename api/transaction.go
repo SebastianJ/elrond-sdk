@@ -3,9 +3,10 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 // TransactionData - represents the transaction data sent to a node API to send transactions
@@ -33,24 +34,24 @@ func (client *Client) SendTransaction(txData TransactionData) (string, error) {
 
 	jsonData, err := json.Marshal(txData)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "JSON Marshal")
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "HTTP NewRequest")
 	}
 
 	body, err := client.PerformRequest(url, req)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Client PerformRequest")
 	}
 
 	var response sendTxResponse
 	json.Unmarshal([]byte(body), &response)
 
 	if response.TxHash == "" {
-		return "", errors.New(response.Error)
+		return "", fmt.Errorf("Response error: %s", response.Error)
 	}
 
 	return response.TxHash, nil
