@@ -34,8 +34,14 @@ func SendTransaction(
 	if txError != nil {
 		// If we've sent an invalid nonce - sleep 3 seconds and then retry again using a fresh nonce
 		if strings.Contains(txError.Error(), "transaction generation failed: invalid nonce") {
-			time.Sleep(3 * time.Second)
-			return SendTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
+			time.Sleep(1 * time.Second)
+
+			currentNonce, err := getNonce(client, wallet.Address, -1)
+			if err != nil {
+				return "", err
+			}
+
+			return SendTransaction(wallet, receiver, amount, sendMaximumAmount, int64(currentNonce), txData, gasParams, client)
 		}
 
 		return "", txError
