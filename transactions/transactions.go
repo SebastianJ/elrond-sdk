@@ -13,6 +13,14 @@ import (
 	sdkWallet "github.com/SebastianJ/elrond-sdk/wallet"
 )
 
+// Transaction - wrapper for transaction and API data
+type Transaction struct {
+	SenderShardID   uint32
+	ReceiverShardID uint32
+	Transaction     transaction.Transaction
+	APIData         api.TransactionData
+}
+
 // SendTransaction - generates and broadcasts a transaction to the blockchain
 func SendTransaction(
 	wallet sdkWallet.Wallet,
@@ -24,12 +32,12 @@ func SendTransaction(
 	gasParams GasParams,
 	client api.Client,
 ) (string, error) {
-	_, apiData, err := GenerateAndSignTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
+	tx, err := GenerateAndSignTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 	if err != nil {
 		return "", err
 	}
 
-	txHexHash, txError := client.SendTransaction(apiData)
+	txHexHash, txError := client.SendTransaction(tx.APIData)
 
 	if txError != nil {
 		// If we've sent an invalid nonce - sleep 3 seconds and then retry again using a fresh nonce
@@ -54,18 +62,18 @@ func GenerateAndSignTransaction(
 	txData string,
 	gasParams GasParams,
 	client api.Client,
-) (transaction.Transaction, api.TransactionData, error) {
-	tx, apiData, err := GenerateTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
+) (Transaction, error) {
+	tx, err := GenerateTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 
 	signature, err := SignTransaction(wallet, tx)
 	if err != nil {
-		return transaction.Transaction{}, api.TransactionData{}, err
+		return Transaction{}, err
 	}
 
 	hexSignature := hex.EncodeToString(signature)
-	apiData.Signature = hexSignature
+	tx.APIData.Signature = hexSignature
 
-	return tx, apiData, nil
+	return tx, nil
 }
 
 // GenerateTransaction - generates a new transaction using the supplied parameters
@@ -78,25 +86,25 @@ func GenerateTransaction(
 	txData string,
 	gasParams GasParams,
 	client api.Client,
-) (transaction.Transaction, api.TransactionData, error) {
+) (Transaction, error) {
 	receiverBytes, err := wallet.Converter.Decode(receiver)
 
 	currentNonce, err := getNonce(client, wallet.Address, nonce)
 	if err != nil {
-		return transaction.Transaction{}, api.TransactionData{}, err
+		return Transaction{}, err
 	}
 
 	gasParams.UpdateGasLimit(txData)
 
 	correctAmount, err := calculateAmount(client, wallet.Address, amount, sendMaximumAmount, gasParams)
 	if err != nil {
-		return transaction.Transaction{}, api.TransactionData{}, err
+		return Transaction{}, err
 	}
 
 	//converted, _ := utils.ConvertNumeralStringToBigFloat(realAmount.String())
 	//fmt.Println(fmt.Sprintf("Sending amount: %f (%s)", converted, realAmount))
 
-	tx := transaction.Transaction{
+	innerTx := transaction.Transaction{
 		SndAddr:  wallet.AddressBytes,
 		RcvAddr:  receiverBytes,
 		Value:    correctAmount,
@@ -116,13 +124,18 @@ func GenerateTransaction(
 		GasLimit: gasParams.GasLimit,
 	}
 
-	return tx, apiData, nil
+	tx := Transaction{
+		Transaction: innerTx,
+		APIData:     apiData,
+	}
+
+	return tx, nil
 }
 
 // SignTransaction - signs a given transaction and returns the signature
-func SignTransaction(wallet sdkWallet.Wallet, tx transaction.Transaction) ([]byte, error) {
+func SignTransaction(wallet sdkWallet.Wallet, tx Transaction) ([]byte, error) {
 	marshaler := &marshal.TxJsonMarshalizer{}
-	txBuff, err := tx.GetDataForSigning(wallet.Converter, marshaler)
+	txBuff, err := tx.Transaction.GetDataForSigning(wallet.Converter, marshaler)
 	if err != nil {
 		return nil, err
 	}
