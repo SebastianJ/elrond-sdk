@@ -40,10 +40,10 @@ func SendTransaction(
 	txData string,
 	gasParams GasParams,
 	client api.Client,
-) (string, error) {
+) (Transaction, string, error) {
 	tx, err := GenerateAndSignTransaction(wallet, receiver, amount, sendMaximumAmount, nonce, txData, gasParams, client)
 	if err != nil {
-		return "", err
+		return Transaction{}, "", err
 	}
 
 	txHexHash, txError := client.SendTransaction(tx.APIData)
@@ -55,10 +55,10 @@ func SendTransaction(
 			return SendTransaction(wallet, receiver, amount, sendMaximumAmount, -1, txData, gasParams, client)
 		}
 
-		return "", txError
+		return Transaction{}, "", err
 	}
 
-	return txHexHash, nil
+	return tx, txHexHash, nil
 }
 
 // GenerateAndSignTransaction - generates and signs a transaction
