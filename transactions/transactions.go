@@ -6,19 +6,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ElrondNetwork/elrond-go/core"
 	"github.com/ElrondNetwork/elrond-go/data/transaction"
+	"github.com/ElrondNetwork/elrond-go/hashing/blake2b"
 	"github.com/ElrondNetwork/elrond-go/marshal"
 	"github.com/SebastianJ/elrond-sdk/api"
 	"github.com/SebastianJ/elrond-sdk/utils"
 	sdkWallet "github.com/SebastianJ/elrond-sdk/wallet"
 )
 
+var (
+	TxJSONMarshaler     *marshal.TxJsonMarshalizer    = &marshal.TxJsonMarshalizer{}
+	Hasher              *blake2b.Blake2b              = &blake2b.Blake2b{}
+	InternalMarshalizer *marshal.GogoProtoMarshalizer = &marshal.GogoProtoMarshalizer{}
+)
+
 // Transaction - wrapper for transaction and API data
 type Transaction struct {
-	SenderShardID   uint32
-	ReceiverShardID uint32
 	Transaction     transaction.Transaction
 	APIData         api.TransactionData
+	SenderShardID   uint32
+	ReceiverShardID uint32
+	TxHash          string
 }
 
 // SendTransaction - generates and broadcasts a transaction to the blockchain
@@ -124,9 +133,16 @@ func GenerateTransaction(
 		GasLimit: gasParams.GasLimit,
 	}
 
+	txHash, err := core.CalculateHash(InternalMarshalizer, Hasher, innerTx)
+	if err != nil {
+		return Transaction{}, err
+	}
+	txHexHash := hex.EncodeToString(txHash)
+
 	tx := Transaction{
 		Transaction: innerTx,
 		APIData:     apiData,
+		TxHash:      txHexHash,
 	}
 
 	return tx, nil
@@ -134,8 +150,7 @@ func GenerateTransaction(
 
 // SignTransaction - signs a given transaction and returns the signature
 func SignTransaction(wallet sdkWallet.Wallet, tx Transaction) ([]byte, error) {
-	marshaler := &marshal.TxJsonMarshalizer{}
-	txBuff, err := tx.Transaction.GetDataForSigning(wallet.Converter, marshaler)
+	txBuff, err := tx.Transaction.GetDataForSigning(wallet.Converter, TxJSONMarshaler)
 	if err != nil {
 		return nil, err
 	}
