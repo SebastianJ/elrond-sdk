@@ -6,11 +6,6 @@ import (
 	"github.com/ElrondNetwork/elrond-go/core"
 )
 
-var (
-	// MetachainShardID - the shard id for the meta chain
-	MetachainShardID uint32 = 4294967295
-)
-
 // CalculateShardForAddress - calculates the shard for a given address
 func CalculateShardForAddress(address []byte, numberOfShards uint32) uint32 {
 	bytesNeed := int(numberOfShards/256) + 1
@@ -21,7 +16,7 @@ func CalculateShardForAddress(address []byte, numberOfShards uint32) uint32 {
 
 	buffNeeded := address[startingIndex:]
 	if core.IsSmartContractOnMetachain(buffNeeded, address) {
-		return MetachainShardID
+		return core.MetachainShardId
 	}
 
 	addr := uint32(0)
