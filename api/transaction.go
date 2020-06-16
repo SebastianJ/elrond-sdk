@@ -27,7 +27,7 @@ type sendTxResponse struct {
 }
 
 // SendTransaction performs the actual HTTP request to send the transaction
-func (client *Client) SendTransaction(txData TransactionData) (string, error) {
+func (client *Client) SendTransaction(txData *TransactionData) (string, error) {
 	client.Initialize()
 
 	url := fmt.Sprintf("%s/transaction/send", client.Host)

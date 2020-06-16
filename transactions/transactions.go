@@ -23,8 +23,8 @@ var (
 
 // Transaction - wrapper for transaction and API data
 type Transaction struct {
-	Transaction     transaction.Transaction
-	APIData         api.TransactionData
+	Transaction     *transaction.Transaction
+	APIData         *api.TransactionData
 	SenderShardID   uint32
 	ReceiverShardID uint32
 	TxHash          string
@@ -82,6 +82,16 @@ func GenerateAndSignTransaction(
 	hexSignature := hex.EncodeToString(signature)
 	tx.APIData.Signature = hexSignature
 
+	tx.Transaction.Signature = signature
+
+	txHash, err := core.CalculateHash(InternalMarshalizer, Hasher, tx.Transaction)
+	if err != nil {
+		return Transaction{}, err
+	}
+
+	txHexHash := hex.EncodeToString(txHash)
+	tx.TxHash = txHexHash
+
 	return tx, nil
 }
 
@@ -113,7 +123,7 @@ func GenerateTransaction(
 	//converted, _ := utils.ConvertNumeralStringToBigFloat(realAmount.String())
 	//fmt.Println(fmt.Sprintf("Sending amount: %f (%s)", converted, realAmount))
 
-	innerTx := transaction.Transaction{
+	innerTx := &transaction.Transaction{
 		SndAddr:  wallet.AddressBytes,
 		RcvAddr:  receiverBytes,
 		Value:    correctAmount,
@@ -123,7 +133,7 @@ func GenerateTransaction(
 		GasLimit: gasParams.GasLimit,
 	}
 
-	apiData := api.TransactionData{
+	apiData := &api.TransactionData{
 		Sender:   wallet.Address,
 		Receiver: receiver,
 		Value:    correctAmount.String(),
@@ -133,16 +143,9 @@ func GenerateTransaction(
 		GasLimit: gasParams.GasLimit,
 	}
 
-	txHash, err := core.CalculateHash(InternalMarshalizer, Hasher, innerTx)
-	if err != nil {
-		return Transaction{}, err
-	}
-	txHexHash := hex.EncodeToString(txHash)
-
 	tx := Transaction{
 		Transaction: innerTx,
 		APIData:     apiData,
-		TxHash:      txHexHash,
 	}
 
 	return tx, nil
