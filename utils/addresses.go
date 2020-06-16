@@ -71,3 +71,18 @@ func Bech32ToPublicKey(bech32 string) (string, error) {
 
 	return pubKey, nil
 }
+
+// Bech32ToPublicKeyBytes - converts a bech32 address to pub key format
+func Bech32ToPublicKeyBytes(bech32 string) ([]byte, error) {
+	converter, err := pubkeyConverter.NewBech32PubkeyConverter(32)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := converter.Decode(bech32)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
+}
