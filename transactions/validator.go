@@ -18,7 +18,7 @@ func GenerateCreateValidatorPayload(blsKeys []crypto.Key, privateKeyPlaceholder 
 	}
 
 	keyCount := len(blsKeys)
-	countPrefix := fmt.Sprintf("%04d", keyCount)
+	countPrefix := fmt.Sprintf("%x", keyCount)
 
 	var payload strings.Builder
 	payload.WriteString("stake@")
