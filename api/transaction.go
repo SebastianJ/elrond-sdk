@@ -29,7 +29,7 @@ type SendTransactionResponse struct {
 
 // SendMultipleTransactionsResponse - API response when sending multiple transactions
 type SendMultipleTransactionsResponse struct {
-	TxsSent   uint64         `json:"txsSent"`
+	TxsSent   uint64         `json:"numOfSentTxs"`
 	TxsHashes map[int]string `json:"txsHashes"`
 	Error     string         `json:"error,omitempty"`
 }
