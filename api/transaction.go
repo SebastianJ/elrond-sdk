@@ -21,9 +21,17 @@ type TransactionData struct {
 	Signature string `json:"signature"`
 }
 
-type sendTxResponse struct {
+// SendTransactionResponse - API response when sending one transaction
+type SendTransactionResponse struct {
 	TxHash string `json:"txHash"`
 	Error  string `json:"error,omitempty"`
+}
+
+// SendMultipleTransactionsResponse - API response when sending multiple transactions
+type SendMultipleTransactionsResponse struct {
+	TxsSent   uint64         `json:"txsSent"`
+	TxsHashes map[int]string `json:"txsHashes"`
+	Error     string         `json:"error,omitempty"`
 }
 
 // SendTransaction performs the actual HTTP request to send the transaction
@@ -47,12 +55,43 @@ func (client *Client) SendTransaction(txData *TransactionData) (string, error) {
 		return "", errors.Wrapf(err, "Client PerformRequest")
 	}
 
-	var response sendTxResponse
+	var response SendTransactionResponse
 	json.Unmarshal([]byte(body), &response)
 
-	if response.TxHash == "" {
+	if response.Error != "" {
 		return "", fmt.Errorf("Response error: %s", response.Error)
 	}
 
 	return response.TxHash, nil
+}
+
+// SendMultipleTransactions performs the actual HTTP request to send the transactions
+func (client *Client) SendMultipleTransactions(txs []*TransactionData) (SendMultipleTransactionsResponse, error) {
+	client.Initialize()
+
+	url := fmt.Sprintf("%s/transaction/send-multiple", client.Host)
+
+	jsonData, err := json.Marshal(txs)
+	if err != nil {
+		return SendMultipleTransactionsResponse{}, errors.Wrapf(err, "JSON Marshal")
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return SendMultipleTransactionsResponse{}, errors.Wrapf(err, "HTTP NewRequest")
+	}
+
+	body, err := client.PerformRequest(url, req)
+	if err != nil {
+		return SendMultipleTransactionsResponse{}, errors.Wrapf(err, "Client PerformRequest")
+	}
+
+	var response SendMultipleTransactionsResponse
+	json.Unmarshal([]byte(body), &response)
+
+	if response.Error != "" {
+		return SendMultipleTransactionsResponse{}, fmt.Errorf("Response error: %s", response.Error)
+	}
+
+	return response, nil
 }
