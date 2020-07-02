@@ -10,7 +10,7 @@ case "${ORG_PATH+set}" in
 "")
    unset -v gopath
    gopath=$(go env GOPATH)
-   # ORG_PATH is the common root directory of all harmony repos
+   # ORG_PATH is the common root directory of all mcl/bls repos
    ORG_PATH="${gopath%%:*}/src/github.com/herumi"
    if [ ! -d $ORG_PATH ]; then
       # "env pwd" uses external pwd(1) implementation and not the Bash built-in,
